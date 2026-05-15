@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg-deep: #0f172a; /* Slate 900 */
+  --color-bg-panel: #1e293b; /* Slate 800 */
+  --color-bg-glass-high: rgba(30, 41, 59, 0.7); 
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  
+  --color-acc-pink: #ec4899;
+  --color-acc-blue: #3b82f6; /* Blue 500 */
+  --color-acc-gold: #fbbf24; /* Amber 400 */
+  --color-acc-gold-bright: #f59e0b;
+  --color-acc-green: #10b981;
+  --color-acc-red: #ef4444;
+
+  /* Magazine Specific Theme Variables - Dynamically updated via JS */
+  --theme-accent: var(--color-acc-gold);
+  --theme-glow: rgba(251, 191, 36, 0.2);
+  --theme-bg-accent: rgba(251, 191, 36, 0.05);
+  --theme-border: rgba(251, 191, 36, 0.15);
+  
+  --color-text-primary: #f8fafc; /* Slate 50 */
+  --color-text-secondary: #94a3b8; /* Slate 400 */
+  --color-text-tertiary: #64748b; /* Slate 500 */
+  --color-text-dim: #334155; /* Slate 700 */
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --animate-scanLine: scanLine 3s linear infinite;
+  
+  @keyframes scanLine {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(500%); }
+  }
+}
+
+@utility glass-panel {
+  @apply bg-bg-panel/80 backdrop-blur-xl border border-border-subtle shadow-[0_8px_32px_rgba(0,0,0,0.5)];
+}
+
+@utility glass-high {
+  @apply bg-bg-glass-high backdrop-blur-2xl border border-white/10 shadow-xl;
+}
+
+@utility gold-glow {
+  @apply shadow-[0_0_20px_rgba(212,175,55,0.2)];
+}
+
+@utility blue-glow {
+  @apply shadow-[0_0_20px_rgba(59,130,246,0.2)];
+}
+
+@utility text-prestige {
+  @apply font-serif italic tracking-tight;
+}
+
+@utility theme-glow-border {
+  border-color: var(--theme-border);
+  box-shadow: 0 0 20px -5px var(--theme-glow);
+}
+
+@utility theme-text {
+  color: var(--theme-accent);
+}
+
+@utility theme-bg {
+  background-color: var(--theme-accent);
+}
+
+@utility theme-glass-bg {
+  background-color: var(--theme-bg-accent);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-deep text-text-primary selection:bg-acc-blue selection:text-white antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply leading-tight tracking-tight;
+  }
+
+  /* Neural Pulse Animation for Background AI Activity */
+  @keyframes neural-pulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.5; }
+  }
+
+  .animate-neural {
+    animation: neural-pulse 3s ease-in-out infinite;
+  }
+
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-bg-deep;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-subtle hover:bg-text-dim transition-colors;
+  }
+}
+
+@layer components {
+  .heading-large {
+    @apply text-[28px] font-semibold leading-[36px];
+  }
+  
+  .heading-medium {
+    @apply text-[20px] font-semibold leading-[28px];
+  }
+
+  .heading-small {
+    @apply text-[16px] font-semibold leading-[22px];
+  }
+
+  .body-default {
+    @apply text-[14px] font-normal leading-[20px];
+  }
+
+  .body-caption {
+    @apply text-[12px] font-medium leading-[16px];
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-text-primary text-bg-deep text-[14px] font-medium leading-[20px] hover:bg-white/90 transition-all rounded-md shadow-sm;
+  }
+  
+  .btn-gold {
+    @apply px-4 py-2 bg-acc-gold text-bg-deep text-[13px] font-black uppercase tracking-widest hover:brightness-110 transition-all rounded shadow-lg shadow-acc-gold/10;
+  }
+
+  .btn-outline {
+    @apply px-4 py-2 bg-transparent text-text-primary text-[14px] font-medium leading-[20px] border border-border-subtle hover:bg-bg-glass-high transition-all rounded-md;
+  }
+
+  .mask-fade-right {
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  }
+
+  .surface-primary {
+    @apply bg-[#09090B];
+  }
+
+  .surface-glass {
+    @apply bg-[#18181B] border border-[#27272A];
+  }
+}

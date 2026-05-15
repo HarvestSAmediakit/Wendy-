@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "A prospective advertiser for one of the publications.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "sector": { "type": "string" },
+        "publication": { "type": "string", "enum": ["Harvest SA", "Black Business Quarterly", "Leadership Magazine"] },
+        "decisionMaker": { "type": "string" },
+        "title": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "source": { "type": "string" },
+        "sourceReasoning": { "type": "string" },
+        "status": { "type": "string", "enum": ["New", "In Progress", "Interested", "Follow-up", "Declined", "Archived"] },
+        "score": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "nextFollowUp": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["companyName", "publication", "status", "ownerId"]
+    },
+    "CallLog": {
+      "title": "Call Log",
+      "description": "Record of a call outcome.",
+      "type": "object",
+      "properties": {
+        "leadId": { "type": "string" },
+        "outcome": { "type": "string", "enum": ["Interested", "Send Media Kit", "Callback", "Declined", "Not Right Person"] },
+        "notes": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["leadId", "outcome", "timestamp", "ownerId"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and settings.",
+      "type": "object",
+      "properties": {
+        "tourCompleted": { "type": "boolean" }
+      }
+    },
+    "Publication": {
+      "title": "Publication",
+      "description": "Detailed profile of a South African trade publication.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "website": { "type": "string" },
+        "sector": { "type": "string" },
+        "publisher": { "type": "string" },
+        "frequency": { "type": "string" },
+        "circulation": { "type": "string" },
+        "audienceDemographics": { "type": "object" },
+        "adRates": { "type": "object" },
+        "mediaKitUrl": { "type": "string" },
+        "editorialCalendar": { "type": "array" },
+        "ownership": { "type": "string" },
+        "contactPersons": { "type": "array" }
+      },
+      "required": ["name", "sector"]
+    },
+    "Advertiser": {
+      "title": "Advertiser",
+      "description": "Company that advertises in B2B media.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "industry": { "type": "string" },
+        "subIndustry": { "type": "string" },
+        "website": { "type": "string" },
+        "estimatedB2BSpend": { "type": "string" },
+        "activePublications": { "type": "array" },
+        "campaigns": { "type": "array" },
+        "keyContacts": { "type": "array" },
+        "growthSignals": { "type": "object" }
+      },
+      "required": ["companyName", "industry"]
+    },
+    "CompetitorEvent": {
+      "title": "Competitor Event",
+      "description": "intelligence event detected in a competitor publication.",
+      "type": "object",
+      "properties": {
+        "publicationId": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["new_advertiser", "sponsorship", "staff_change", "product_launch"] },
+        "description": { "type": "string" },
+        "detectedAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["publicationId", "eventType", "detectedAt"]
+    },
+    "OpportunityScore": {
+      "title": "Opportunity Score",
+      "description": "AI-generated score for a potential advertising lead.",
+      "type": "object",
+      "properties": {
+        "advertiserId": { "type": "string" },
+        "targetPublicationId": { "type": "string" },
+        "score": { "type": "number" },
+        "reasons": { "type": "array" },
+        "recommendedAction": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["advertiserId", "score", "createdAt"]
+    },
+    "UserInteraction": {
+      "title": "User Interaction",
+      "description": "Log of user interactions for analytics.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["tab_switch", "context_switch"] },
+        "value": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["userId", "type", "value", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Collection of leads."
+    },
+    "/interactions/{interactionId}": {
+      "schema": "UserInteraction",
+      "description": "Historical log of UI interactions."
+    },
+    "/calls/{callId}": {
+      "schema": "CallLog",
+      "description": "Collection of call logs associated with leads."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "/publications/{publicationId}": {
+      "schema": "Publication",
+      "description": "Master database of SA trade publications."
+    },
+    "/advertisers/{advertiserId}": {
+      "schema": "Advertiser",
+      "description": "Registry of B2B advertisers and their behaviors."
+    },
+    "/competitor_events/{eventId}": {
+      "schema": "CompetitorEvent",
+      "description": "Intelligence feed of competitor movements."
+    },
+    "/opportunity_scores/{scoreId}": {
+      "schema": "OpportunityScore",
+      "description": "AI scores and rationales for potential deals."
+    }
+  }
+}

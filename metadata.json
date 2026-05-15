@@ -1,0 +1,8 @@
+{
+  "name": "WENDY",
+  "description": "Enterprise-grade media sales intelligence platform with real-time web discovery via Firecrawl and AI-driven CRM orchestration.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

@@ -1,0 +1,155 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn(); 
+    }
+
+    function isOwner(resourceData) {
+      return isVerified() && resourceData.ownerId == request.auth.uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidLead(incoming, existing) {
+      let isCreate = existing == null;
+      let requiredFields = ['companyName', 'publication', 'status', 'ownerId', 'createdAt', 'updatedAt'];
+      
+      let baseValid = 
+             (!('companyName' in incoming) || (incoming.companyName is string && incoming.companyName.size() <= 200)) &&
+             (!('publication' in incoming) || (incoming.publication in ['Harvest SA', 'Black Business Quarterly', 'Leadership Magazine'])) &&
+             (!('status' in incoming) || (incoming.status in ['New', 'In Progress', 'Interested', 'Follow-up', 'Declined', 'Archived'])) &&
+             (!('ownerId' in incoming) || (incoming.ownerId == request.auth.uid)) &&
+             (!('createdAt' in incoming) || (incoming.createdAt is string && incoming.createdAt.size() <= 100)) &&
+             (!('updatedAt' in incoming) || (incoming.updatedAt is string && incoming.updatedAt.size() <= 100)) &&
+             // Optional fields types and size bounds
+             (!('sector' in incoming) || (incoming.sector is string && incoming.sector.size() <= 100)) &&
+             (!('decisionMaker' in incoming) || (incoming.decisionMaker is string && incoming.decisionMaker.size() <= 100)) &&
+             (!('email' in incoming) || (incoming.email is string && incoming.email.size() <= 150)) &&
+             (!('phone' in incoming) || (incoming.phone is string && incoming.phone.size() <= 50)) &&
+             (!('quickPitch' in incoming) || (incoming.quickPitch is string && incoming.quickPitch.size() <= 3000));
+             
+      return (isCreate ? incoming.keys().hasAll(requiredFields) : true) && baseValid;
+    }
+
+    function isValidCallLog(incoming, existing) {
+      let isCreate = existing == null;
+      let requiredFields = ['leadId', 'outcome', 'timestamp', 'ownerId'];
+      return (isCreate ? incoming.keys().hasAll(requiredFields) : true) &&
+             (!('leadId' in incoming) || isValidId(incoming.leadId)) &&
+             (!('outcome' in incoming) || (incoming.outcome is string)) &&
+             (!('ownerId' in incoming) || (incoming.ownerId == request.auth.uid)) &&
+             (!('notes' in incoming) || (incoming.notes is string && incoming.notes.size() <= 5000));
+    }
+
+    function isValidPromptVersion(incoming) {
+      return incoming.keys().hasAll(['role', 'instruction', 'guardrails', 'specifics', 'createdBy', 'createdAt']) &&
+             incoming.role is string &&
+             incoming.instruction is string &&
+             incoming.guardrails is string &&
+             incoming.specifics is string &&
+             incoming.createdBy == request.auth.uid;
+    }
+
+    function isValidInteraction(incoming) {
+      return incoming.keys().hasAll(['userId', 'type', 'value', 'timestamp']) &&
+             incoming.userId == request.auth.uid &&
+             incoming.type in ['tab_switch', 'context_switch'] &&
+             incoming.value is string;
+    }
+
+    function isValidUser(incoming) {
+      return (!('tourCompleted' in incoming) || (incoming.tourCompleted is bool));
+    }
+
+    // --- Match Blocks ---
+
+    match /leads/{leadId} {
+      allow get: if isOwner(existing());
+      allow list: if isVerified() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isVerified() && isValidLead(incoming(), null) && isValidId(leadId);
+      
+      allow update: if isOwner(existing()) && isValidLead(incoming(), existing()) && (
+        // Action: Update Status
+        (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+        // Action: Schedule Follow-up
+        (incoming().diff(existing()).affectedKeys().hasOnly(['nextFollowUp', 'status', 'updatedAt'])) ||
+        // Action: Enrich Technical Insights (Pitch/LinkedIn)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['quickPitch', 'linkedInInsights', 'updatedAt'])) ||
+        // Action: Metadata Correction (Admin/Owner Fix)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['companyName', 'sector', 'decisionMaker', 'companyName', 'title', 'email', 'phone', 'updatedAt']))
+      ) && incoming().ownerId == existing().ownerId; // Immortal ownerId
+
+      allow delete: if isOwner(existing());
+    }
+
+    match /calls/{callId} {
+      allow get: if isOwner(existing());
+      allow list: if isVerified() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isVerified() && 
+                    isValidCallLog(incoming(), null) && 
+                    isValidId(callId) &&
+                    // Relational Sync: Parent lead must exist and be owned by user
+                    exists(/databases/$(database)/documents/leads/$(incoming().leadId)) &&
+                    get(/databases/$(database)/documents/leads/$(incoming().leadId)).data.ownerId == request.auth.uid;
+      
+      allow delete: if isOwner(existing());
+    }
+
+    match /users/{userId} {
+      allow get: if isVerified() && userId == request.auth.uid;
+      allow create, update: if isVerified() && userId == request.auth.uid && isValidUser(incoming());
+    }
+
+    match /publications/{publicationId} {
+      allow read, write: if isVerified();
+    }
+
+    match /advertisers/{advertiserId} {
+      allow read, write: if isVerified();
+    }
+
+    match /competitor_events/{eventId} {
+      allow read, write: if isVerified();
+    }
+
+    match /opportunity_scores/{scoreId} {
+      allow read, write: if isVerified();
+    }
+
+    match /prompt_versions/{versionId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidPromptVersion(incoming());
+    }
+
+    match /interactions/{interactionId} {
+      allow create: if isVerified() && isValidInteraction(incoming());
+      allow list: if isVerified() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

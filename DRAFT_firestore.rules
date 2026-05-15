@@ -1,0 +1,99 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(resourceData) {
+      return isVerified() && resourceData.ownerId == request.auth.uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidLead(data) {
+      let requiredFields = ['companyName', 'publication', 'status', 'ownerId', 'createdAt', 'updatedAt'];
+      return data.keys().hasAll(requiredFields) &&
+             data.companyName is string && data.companyName.size() <= 200 &&
+             data.publication in ['Harvest SA', 'BBQ', 'Leadership Magazine'] &&
+             data.status in ['New', 'In Progress', 'Interested', 'Follow-up', 'Declined', 'Archived'] &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is string && data.createdAt.size() <= 100 &&
+             data.updatedAt is string && data.updatedAt.size() <= 100 &&
+             // Optional fields types
+             (!('sector' in data) || (data.sector is string && data.sector.size() <= 100)) &&
+             (!('decisionMaker' in data) || (data.decisionMaker is string && data.decisionMaker.size() <= 100)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('quickPitch' in data) || (data.quickPitch is string && data.quickPitch.size() <= 2000));
+    }
+
+    function isValidCallLog(data) {
+      let requiredFields = ['leadId', 'outcome', 'timestamp', 'ownerId'];
+      return data.keys().hasAll(requiredFields) &&
+             isValidId(data.leadId) &&
+             data.outcome in ['Interested', 'Send Media Kit', 'Callback', 'Declined', 'Not Right Person'] &&
+             data.timestamp is string && data.timestamp.size() <= 100 &&
+             data.ownerId == request.auth.uid &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 5000));
+    }
+
+    // --- Match Blocks ---
+
+    match /leads/{leadId} {
+      allow get: if isOwner(existing());
+      allow list: if isVerified() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isVerified() && isValidLead(incoming()) && isValidId(leadId);
+      
+      allow update: if isOwner(existing()) && isValidLead(incoming()) && (
+        // Action: Update Status
+        (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+        // Action: Schedule Follow-up
+        (incoming().diff(existing()).affectedKeys().hasOnly(['nextFollowUp', 'status', 'updatedAt'])) ||
+        // Action: Enrich Technical Insights (Pitch/LinkedIn)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['quickPitch', 'linkedInInsights', 'updatedAt'])) ||
+        // Action: Metadata Correction (Admin/Owner Fix)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['companyName', 'sector', 'decisionMaker', 'title', 'email', 'phone', 'updatedAt']))
+      ) && incoming().ownerId == existing().ownerId; // Immortal ownerId
+
+      allow delete: if isOwner(existing());
+    }
+
+    match /calls/{callId} {
+      allow get: if isOwner(existing());
+      allow list: if isVerified() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isVerified() && 
+                    isValidCallLog(incoming()) && 
+                    isValidId(callId) &&
+                    // Relational Sync: Parent lead must exist and be owned by user
+                    get(/databases/$(database)/documents/leads/$(incoming().leadId)).data.ownerId == request.auth.uid;
+      
+      allow delete: if isOwner(existing());
+    }
+  }
+}
